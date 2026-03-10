@@ -58,8 +58,8 @@
   .month-header { background: var(--brown); padding: 16px 24px; }
   .month-header h2 { font-family: 'Fredoka One', cursive; font-size: 1.6rem; color: var(--amber); }
 
-  .day-grid { padding: 20px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-  .day-label { text-align: center; font-weight: 800; font-size: 0.75rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 0 8px; }
+  .day-grid { padding: 20px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+  .day-label { text-align: center; font-weight: 800; font-size: 0.75rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 0 8px; overflow: hidden; }
 
   .day-cell { border-radius: 14px; border: 2px solid #F0E8E0; padding: 8px 6px; min-height: 100px; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; position: relative; }
   .day-cell.active { cursor: pointer; }
@@ -127,8 +127,40 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (max-width: 600px) {
-    .day-grid { gap: 4px; } .day-cell { min-height: 80px; padding: 5px 3px; }
-    .slot { font-size: 0.6rem; padding: 2px 4px; } .day-num { font-size: 0.8rem; }
+    .container { padding: 12px 8px 40px; }
+    header { padding: 28px 14px 24px; border-radius: 20px; margin-bottom: 20px; }
+    .dog-emoji { font-size: 48px; }
+    header h1 { font-size: 1.5rem; }
+    header p { font-size: 0.9rem; }
+    .dates-badge { font-size: 0.8rem; padding: 5px 12px; }
+    .legend { gap: 6px; margin-bottom: 16px; }
+    .legend-item { padding: 5px 10px; font-size: 0.75rem; gap: 5px; }
+    .legend-dot { width: 10px; height: 10px; }
+    .instructions { padding: 14px 16px; margin-bottom: 16px; border-radius: 14px; }
+    .instructions h3 { font-size: 1rem; }
+    .instructions li { font-size: 0.82rem; }
+    .month-block { border-radius: 16px; margin-bottom: 16px; }
+    .month-header { padding: 10px 14px; }
+    .month-header h2 { font-size: 1.2rem; }
+    .day-grid { padding: 6px; gap: 3px; }
+    .day-label { font-size: 0.6rem; letter-spacing: 0; padding: 2px 0 4px; }
+    .day-cell { min-height: auto; padding: 4px 2px; border-radius: 8px; border-width: 1.5px; }
+    .day-num { font-size: 0.7rem; margin-bottom: 2px; }
+    .slot { font-size: 0.55rem; padding: 2px 3px; margin-bottom: 2px; min-height: 16px; gap: 1px; border-radius: 4px; }
+    .slot-icon { font-size: 0.6rem; }
+    .slot-name { font-size: 0.5rem; }
+    .summary { padding: 16px; border-radius: 16px; }
+    .summary h2 { font-size: 1.2rem; }
+    .summary-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .print-btn { font-size: 0.95rem; padding: 12px 28px; }
+  }
+  @media (max-width: 380px) {
+    .day-grid { padding: 4px; gap: 2px; }
+    .day-label { font-size: 0.5rem; }
+    .day-num { font-size: 0.65rem; }
+    .slot { padding: 1px 2px; min-height: 14px; }
+    .slot-name { display: none; }
+    .slot-icon { font-size: 0.6rem; margin: 0 auto; }
   }
   @media print { .modal-overlay, .print-btn, #config-banner, #status-bar, .loading-overlay { display: none !important; } body { background: white; } body::before { display: none; } }
 </style>
