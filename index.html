@@ -121,6 +121,18 @@
   .print-btn { display: block; margin: 24px auto 0; padding: 14px 36px; background: var(--brown); color: var(--amber); font-family: 'Fredoka One', cursive; font-size: 1.1rem; border: none; border-radius: 50px; cursor: pointer; box-shadow: var(--shadow); transition: transform 0.15s; }
   .print-btn:hover { transform: translateY(-3px); }
 
+  .name-mgmt { background: white; border-radius: 24px; padding: 24px; box-shadow: var(--shadow); margin-top: 20px; }
+  .name-mgmt h2 { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--brown); margin-bottom: 6px; }
+  .name-mgmt-toggle { background: none; border: none; font-family: 'Nunito', sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--blue); cursor: pointer; padding: 0; margin-bottom: 14px; display: block; }
+  .name-mgmt-toggle:hover { text-decoration: underline; }
+  .name-mgmt-body { display: none; }
+  .name-mgmt-body.open { display: block; }
+  .name-mgmt-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .name-mgmt-chip { display: flex; align-items: center; gap: 6px; padding: 7px 10px 7px 14px; border-radius: 50px; border: 2px solid #E5D5C5; background: white; font-family: 'Nunito', sans-serif; font-size: 0.88rem; font-weight: 700; color: var(--text); }
+  .name-mgmt-del { width: 22px; height: 22px; border-radius: 50%; border: none; background: var(--red-light); color: var(--red); font-size: 0.8rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; line-height: 1; padding: 0; }
+  .name-mgmt-del:hover { background: var(--red); color: white; }
+  .name-mgmt-empty { font-size: 0.9rem; color: var(--gray); font-style: italic; }
+
   .loading-overlay { position: fixed; inset: 0; background: rgba(255,248,240,0.9); z-index: 200; display: flex; align-items: center; justify-content: center; font-family: 'Fredoka One', cursive; font-size: 1.4rem; color: var(--brown); gap: 12px; }
   .loading-overlay.hidden { display: none; }
   .spinner { width: 28px; height: 28px; border: 4px solid #F0E8E0; border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -210,6 +222,14 @@
   <div class="summary">
     <h2>🏆 Sign-Up Summary</h2>
     <div class="summary-grid" id="summary-grid"><em style="color:var(--gray);font-size:0.9rem;">No sign-ups yet — be the first!</em></div>
+  </div>
+
+  <div class="name-mgmt">
+    <h2>👤 Manage Names</h2>
+    <button class="name-mgmt-toggle" id="name-mgmt-toggle" onclick="toggleNameMgmt()">Show name list ▾</button>
+    <div class="name-mgmt-body" id="name-mgmt-body">
+      <div class="name-mgmt-list" id="name-mgmt-list"></div>
+    </div>
   </div>
 
   <button class="print-btn" onclick="window.print()">🖨️ Print Calendar</button>
@@ -306,6 +326,13 @@ async function dbDelete(dateKey, slot) {
 async function dbSaveName(name) {
   if (!USE_DB) return;
   await sb.from('names').upsert({ name },{ onConflict:'name' });
+}
+
+async function dbDeleteName(name) {
+  if (!USE_DB) return;
+  await sb.from('names').delete().eq('name', name);
+  // Also remove all signups by this person
+  await sb.from('signups').delete().eq('person_name', name);
 }
 
 function dbSubscribe() {
@@ -405,6 +432,53 @@ async function removeSignup() {
 
 document.getElementById('new-name-input').addEventListener('keydown', e=>{ if(e.key==='Enter') addNewName(); if(e.key==='Escape') closeModal(); });
 document.getElementById('modal').addEventListener('click', e=>{ if(e.target===document.getElementById('modal')) closeModal(); });
+
+// ── Name Management ──────────────────────────────────────────
+function toggleNameMgmt() {
+  const body = document.getElementById('name-mgmt-body');
+  const btn = document.getElementById('name-mgmt-toggle');
+  const isOpen = body.classList.toggle('open');
+  btn.textContent = isOpen ? 'Hide name list ▴' : 'Show name list ▾';
+  if (isOpen) renderNameMgmt();
+}
+
+function renderNameMgmt() {
+  const list = document.getElementById('name-mgmt-list');
+  if (!names.length) { list.innerHTML = '<span class="name-mgmt-empty">No names added yet.</span>'; return; }
+  list.innerHTML = '';
+  names.forEach(n => {
+    const chip = document.createElement('div');
+    chip.className = 'name-mgmt-chip';
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = n;
+    const delBtn = document.createElement('button');
+    delBtn.className = 'name-mgmt-del';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete ' + n;
+    delBtn.onclick = () => deleteName(n);
+    chip.appendChild(nameSpan);
+    chip.appendChild(delBtn);
+    list.appendChild(chip);
+  });
+}
+
+async function deleteName(name) {
+  if (!confirm('Delete "' + name + '" and remove all their sign-ups?')) return;
+  // Remove from names array
+  names = names.filter(n => n !== name);
+  // Remove all signups by this person
+  Object.keys(signups).forEach(key => {
+    Object.keys(signups[key]).forEach(slot => {
+      if (signups[key][slot] === name) delete signups[key][slot];
+    });
+    if (!Object.keys(signups[key]).length) delete signups[key];
+  });
+  await dbDeleteName(name);
+  localSave();
+  renderNameMgmt();
+  renderCalendar();
+  renderSummary();
+}
 
 // ── Calendar ──────────────────────────────────────────────────
 function renderCalendar() {
