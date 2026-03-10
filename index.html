@@ -151,7 +151,7 @@
   <header>
     <span class="dog-emoji">🐕‍🦺</span>
     <h1>Matilda's Care Calendar</h1>
-    <p>Help us take care of our sweet black lab while we're away!</p>
+    <p>Thank you for helping us take care of Matilda while we're away!</p>
     <span class="dates-badge">📅 May 25 – July 22, 2025</span>
   </header>
 
@@ -160,7 +160,7 @@
   <div class="legend">
     <div class="legend-item"><span class="legend-dot dot-am"></span> AM Feeding</div>
     <div class="legend-item"><span class="legend-dot dot-pm"></span> PM Feeding</div>
-    <div class="legend-item"><span class="legend-dot dot-poop"></span> Poop Scoop + Lawn (Mondays)</div>
+    <div class="legend-item"><span class="legend-dot dot-poop"></span> Poop Scoop + Lawn (Every Other Week)</div>
   </div>
 
   <div class="instructions">
@@ -169,7 +169,7 @@
       <li>Click anywhere on a <strong>day</strong> to sign up for AM, PM, or both feedings</li>
       <li>Click directly on the <strong>AM or PM tag</strong> to fill just that slot</li>
       <li>Pick your name from the list — or type a new one to add it permanently</li>
-      <li>The 🌿 Monday slot is a reminder for the poop scoop &amp; lawn family</li>
+      <li>The 🌿 slot appears every other week (Jun 2, Jun 16, Jun 30, Jul 14) for the poop scoop &amp; lawn</li>
     </ul>
   </div>
 
@@ -237,6 +237,7 @@ const START = new Date(2025, 4, 25);
 const END   = new Date(2025, 6, 22);
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const LAWN_DATES = new Set(['2025-6-2','2025-6-16','2025-6-30','2025-7-14']);
 
 let signups = {}; // { "2025-5-25": { am:"Emma", pm:"Liam", poop:"Noah" } }
 
@@ -253,7 +254,7 @@ async function dbLoad() {
     (rows||[]).forEach(r => { if (!signups[r.date_key]) signups[r.date_key]={}; signups[r.date_key][r.slot]=r.person_name; });
     const extra = (nameRows||[]).map(r=>r.name);
     names = [...new Set([...names,...extra])];
-    setStatus('✓ Live — everyone sees the same calendar','ok');
+    setStatus('','');
   } catch(err) {
     setStatus('⚠️ Supabase error — using local mode','error');
     localLoad();
@@ -401,7 +402,7 @@ function renderCalendar() {
         cell.addEventListener('click',()=>openDayModal(key,label));
         cell.appendChild(mkSlot(key,'am','🌅',data.am,label));
         cell.appendChild(mkSlot(key,'pm','🌇',data.pm,label));
-        if(date.getDay()===1||data.poop) cell.appendChild(mkSlot(key,'poop','🌿',data.poop,label));
+        if(LAWN_DATES.has(key)||data.poop) cell.appendChild(mkSlot(key,'poop','🌿',data.poop,label));
       }
       grid.appendChild(cell);
     }
