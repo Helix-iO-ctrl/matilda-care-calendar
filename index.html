@@ -350,6 +350,33 @@ function setStatus(msg,cls) { const el=document.getElementById('status-bar'); el
 function dateKey(d) { return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
 function inRange(d) { return d>=START && d<=END; }
 
+// ── Profanity filter ─────────────────────────────────────────
+const BLOCKED = [
+  'fuck','shit','ass','damn','bitch','bastard','dick','cock','pussy','cunt',
+  'whore','slut','fag','nigger','nigga','retard','twat','wanker','piss',
+  'bollocks','arsehole','asshole','motherfucker','bullshit','horseshit',
+  'dipshit','dumbass','jackass','shithead','dickhead','fuckhead','cuntface',
+  'douche','douchebag','tits','boobs','penis','vagina','anus','butthole',
+  'hoe','skank','tranny','dyke','spic','chink','kike','wetback','cracker',
+  'crap','prick','suck','blowjob','handjob','jerkoff','cum','jizz','dildo',
+  'freaking','frickin','effing'
+];
+const BLOCKED_RE = new RegExp('\\b(' + BLOCKED.join('|') + ')\\b', 'i');
+const BLOCKED_LEET = str => {
+  // Catch common letter substitutions: @ for a, 0 for o, 1 for i/l, 3 for e, $ for s, etc.
+  return str.toLowerCase()
+    .replace(/@/g,'a').replace(/0/g,'o').replace(/1/g,'i').replace(/3/g,'e')
+    .replace(/\$/g,'s').replace(/5/g,'s').replace(/\+/g,'t').replace(/4/g,'a')
+    .replace(/7/g,'t').replace(/8/g,'b').replace(/9/g,'g').replace(/!/g,'i');
+};
+function isCleanName(str) {
+  if (BLOCKED_RE.test(str)) return false;
+  if (BLOCKED_RE.test(BLOCKED_LEET(str))) return false;
+  // Also block if name is only non-letter characters
+  if (!/[a-zA-Z]/.test(str)) return false;
+  return true;
+}
+
 // ── Modal state ───────────────────────────────────────────────
 let mKey=null, mMode=null, mSlot='both', mName=null;
 // mMode: 'day' | 'am' | 'pm' | 'poop'
@@ -407,6 +434,13 @@ function addNewName() {
   const inp = document.getElementById('new-name-input');
   const n = inp.value.trim();
   if (!n || names.includes(n)) { inp.value=''; return; }
+  if (!isCleanName(n)) {
+    inp.value = '';
+    inp.placeholder = 'That name is not allowed — try again';
+    inp.style.borderColor = '#E05C5C';
+    setTimeout(() => { inp.placeholder = 'Type a new name to add…'; inp.style.borderColor = ''; }, 3000);
+    return;
+  }
   names.push(n);
   dbSaveName(n);
   localSave();
