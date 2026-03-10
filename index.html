@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matilda's Care Calendar 🐾</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --cream: #FFF8F0; --brown: #5C3D2E; --amber: #E8A838; --amber-light: #FDE68A;
+    --green: #4CAF7D; --green-light: #D1FAE5; --blue: #4A90D9; --blue-light: #DBEAFE;
+    --red: #E05C5C; --red-light: #FEE2E2; --text: #3D2B1F; --gray: #9CA3AF;
+    --shadow: 0 4px 20px rgba(92,61,46,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--cream); font-family: 'Nunito', sans-serif; color: var(--text); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23E8A838' fill-opacity='0.07'%3E%3Ccircle cx='20' cy='20' r='5'/%3E%3Ccircle cx='30' cy='14' r='3.5'/%3E%3Ccircle cx='10' cy='14' r='3.5'/%3E%3Ccircle cx='34' cy='22' r='3'/%3E%3Ccircle cx='6' cy='22' r='3'/%3E%3Ccircle cx='60' cy='60' r='5'/%3E%3Ccircle cx='70' cy='54' r='3.5'/%3E%3Ccircle cx='50' cy='54' r='3.5'/%3E%3Ccircle cx='74' cy='62' r='3'/%3E%3Ccircle cx='46' cy='62' r='3'/%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+  .container { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  #config-banner {
+    background: #FEF3C7; border: 2px solid var(--amber); border-radius: 16px;
+    padding: 16px 20px; margin-bottom: 24px; font-size: 0.9rem; font-weight: 700;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  #config-banner.hidden { display: none; }
+  #config-banner .icon { font-size: 1.4rem; flex-shrink: 0; }
+  #config-banner code { background: rgba(0,0,0,0.08); padding: 1px 5px; border-radius: 4px; font-size: 0.85rem; }
+
+  header { text-align: center; padding: 40px 20px 32px; background: var(--brown); border-radius: 28px; margin-bottom: 32px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  header::after { content: ''; position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent; border-top: 30px solid var(--brown); }
+  .dog-emoji { font-size: 72px; display: block; margin-bottom: 8px; animation: wag 1.8s ease-in-out infinite; transform-origin: bottom center; }
+  @keyframes wag { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+  header h1 { font-family: 'Fredoka One', cursive; font-size: clamp(2rem, 5vw, 3.2rem); color: var(--amber); letter-spacing: 1px; }
+  header p { color: rgba(255,255,255,0.85); font-size: 1.1rem; margin-top: 8px; font-weight: 600; }
+  .dates-badge { display: inline-block; background: var(--amber); color: var(--brown); font-weight: 800; font-size: 0.95rem; padding: 6px 18px; border-radius: 20px; margin-top: 14px; }
+
+  #status-bar { text-align: center; font-size: 0.85rem; font-weight: 700; color: var(--gray); margin-bottom: 16px; min-height: 20px; }
+  #status-bar.error { color: var(--red); }
+  #status-bar.ok { color: var(--green); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 28px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; background: white; border-radius: 50px; padding: 8px 16px; font-size: 0.9rem; font-weight: 700; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  .legend-dot { width: 14px; height: 14px; border-radius: 50%; }
+  .dot-am { background: var(--blue); } .dot-pm { background: var(--amber); } .dot-poop { background: var(--green); }
+
+  .instructions { background: white; border-radius: 20px; padding: 20px 24px; margin-bottom: 28px; box-shadow: var(--shadow); border-left: 6px solid var(--amber); }
+  .instructions h3 { font-family: 'Fredoka One', cursive; font-size: 1.2rem; color: var(--brown); margin-bottom: 10px; }
+  .instructions ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .instructions li { font-size: 0.93rem; font-weight: 600; padding-left: 22px; position: relative; }
+  .instructions li::before { content: '🐾'; position: absolute; left: 0; font-size: 0.85rem; }
+
+  .month-block { background: white; border-radius: 24px; box-shadow: var(--shadow); margin-bottom: 28px; overflow: hidden; }
+  .month-header { background: var(--brown); padding: 16px 24px; }
+  .month-header h2 { font-family: 'Fredoka One', cursive; font-size: 1.6rem; color: var(--amber); }
+
+  .day-grid { padding: 20px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .day-label { text-align: center; font-weight: 800; font-size: 0.75rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 0 8px; }
+
+  .day-cell { border-radius: 14px; border: 2px solid #F0E8E0; padding: 8px 6px; min-height: 100px; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; position: relative; }
+  .day-cell.active { cursor: pointer; }
+  .day-cell.active:hover { border-color: var(--amber); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(232,168,56,0.25); }
+  .day-cell.inactive { background: #FAFAFA; opacity: 0.35; cursor: default; }
+  .day-num { font-weight: 800; font-size: 0.9rem; color: var(--brown); margin-bottom: 6px; display: block; pointer-events: none; }
+  .inactive .day-num { color: var(--gray); }
+
+  .slot { border-radius: 8px; padding: 3px 6px; font-size: 0.7rem; font-weight: 700; margin-bottom: 3px; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; min-height: 22px; position: relative; z-index: 2; }
+  .slot:hover { opacity: 0.8; transform: scale(0.97); }
+  .slot.am { background: var(--blue-light); color: #1D4ED8; }
+  .slot.pm { background: var(--amber-light); color: #92400E; }
+  .slot.poop { background: var(--green-light); color: #065F46; }
+  .slot.empty { opacity: 0.55; border: 1.5px dashed currentColor; background: transparent; }
+  .slot-icon { font-size: 0.75rem; flex-shrink: 0; }
+  .slot-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(60,40,20,0.55); z-index: 100; backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 24px; padding: 28px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); animation: pop-in 0.2s ease; }
+  @keyframes pop-in { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal h3 { font-family: 'Fredoka One', cursive; font-size: 1.4rem; color: var(--brown); margin-bottom: 4px; }
+  .modal .slot-desc { font-size: 0.88rem; color: var(--gray); font-weight: 700; margin-bottom: 18px; }
+
+  .section-label { font-size: 0.78rem; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+  .slot-toggle { display: flex; gap: 8px; margin-bottom: 18px; }
+  .toggle-btn { flex: 1; padding: 10px 8px; border: 2px solid #E5D5C5; border-radius: 12px; background: white; font-family: 'Nunito', sans-serif; font-size: 0.85rem; font-weight: 800; cursor: pointer; transition: all 0.15s; color: var(--text); text-align: center; }
+  .toggle-btn.sel-am { border-color: var(--blue); background: var(--blue-light); color: #1D4ED8; }
+  .toggle-btn.sel-pm { border-color: var(--amber); background: var(--amber-light); color: #92400E; }
+  .toggle-btn.sel-both { border-color: var(--brown); background: #F0E8E0; color: var(--brown); }
+
+  .name-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; max-height: 140px; overflow-y: auto; padding: 2px; }
+  .name-chip { padding: 7px 14px; border-radius: 50px; border: 2px solid #E5D5C5; background: white; font-family: 'Nunito', sans-serif; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s; color: var(--text); }
+  .name-chip:hover { border-color: var(--amber); background: var(--amber-light); }
+  .name-chip.selected { border-color: var(--brown); background: var(--brown); color: white; }
+
+  .add-name-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .add-name-row input { flex: 1; padding: 10px 14px; border: 2px solid #E5D5C5; border-radius: 12px; font-family: 'Nunito', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--text); outline: none; transition: border-color 0.2s; }
+  .add-name-row input:focus { border-color: var(--amber); }
+  .add-name-row button { padding: 10px 16px; background: var(--amber); color: var(--brown); border: none; border-radius: 12px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: opacity 0.15s; white-space: nowrap; }
+  .add-name-row button:hover { opacity: 0.85; }
+
+  .modal-btns { display: flex; gap: 10px; }
+  .btn { flex: 1; padding: 12px; border: none; border-radius: 12px; font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 800; cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+  .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+  .btn-confirm { background: var(--amber); color: var(--brown); }
+  .btn-cancel { background: #F0E8E0; color: var(--brown); }
+  .btn-remove { background: var(--red-light); color: var(--red); margin-top: 8px; width: 100%; }
+
+  .summary { background: white; border-radius: 24px; padding: 24px; box-shadow: var(--shadow); margin-top: 8px; }
+  .summary h2 { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--brown); margin-bottom: 16px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .summary-card { background: var(--cream); border-radius: 14px; padding: 12px 14px; border: 2px solid #F0E8E0; }
+  .summary-card .name { font-weight: 800; font-size: 0.95rem; color: var(--brown); }
+  .summary-card .count { font-size: 0.8rem; color: var(--gray); font-weight: 600; margin-top: 3px; }
+
+  .print-btn { display: block; margin: 24px auto 0; padding: 14px 36px; background: var(--brown); color: var(--amber); font-family: 'Fredoka One', cursive; font-size: 1.1rem; border: none; border-radius: 50px; cursor: pointer; box-shadow: var(--shadow); transition: transform 0.15s; }
+  .print-btn:hover { transform: translateY(-3px); }
+
+  .loading-overlay { position: fixed; inset: 0; background: rgba(255,248,240,0.9); z-index: 200; display: flex; align-items: center; justify-content: center; font-family: 'Fredoka One', cursive; font-size: 1.4rem; color: var(--brown); gap: 12px; }
+  .loading-overlay.hidden { display: none; }
+  .spinner { width: 28px; height: 28px; border: 4px solid #F0E8E0; border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    .day-grid { gap: 4px; } .day-cell { min-height: 80px; padding: 5px 3px; }
+    .slot { font-size: 0.6rem; padding: 2px 4px; } .day-num { font-size: 0.8rem; }
+  }
+  @media print { .modal-overlay, .print-btn, #config-banner, #status-bar, .loading-overlay { display: none !important; } body { background: white; } body::before { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading"><div class="spinner"></div> Loading Matilda's calendar…</div>
+
+<div class="container">
+
+  <div id="config-banner">
+    <span class="icon">⚠️</span>
+    <div>
+      <strong>Supabase not connected yet — running in local mode.</strong><br>
+      Open this file in a text editor, find <code>YOUR_SUPABASE_URL</code> and <code>YOUR_SUPABASE_ANON_KEY</code> near the bottom and replace them with your project values.<br>
+      See the included <strong>SETUP.md</strong> file for step-by-step instructions.
+    </div>
+  </div>
+
+  <header>
+    <span class="dog-emoji">🐕‍🦺</span>
+    <h1>Matilda's Care Calendar</h1>
+    <p>Help us take care of our sweet black lab while we're away!</p>
+    <span class="dates-badge">📅 May 25 – July 22, 2025</span>
+  </header>
+
+  <div id="status-bar"></div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot dot-am"></span> AM Feeding</div>
+    <div class="legend-item"><span class="legend-dot dot-pm"></span> PM Feeding</div>
+    <div class="legend-item"><span class="legend-dot dot-poop"></span> Poop Scoop + Lawn (Mondays)</div>
+  </div>
+
+  <div class="instructions">
+    <h3>How to Sign Up</h3>
+    <ul>
+      <li>Click anywhere on a <strong>day</strong> to sign up for AM, PM, or both feedings</li>
+      <li>Click directly on the <strong>AM or PM tag</strong> to fill just that slot</li>
+      <li>Pick your name from the list — or type a new one to add it permanently</li>
+      <li>The 🌿 Monday slot is a reminder for the poop scoop &amp; lawn family</li>
+    </ul>
+  </div>
+
+  <div id="calendar"></div>
+
+  <div class="summary">
+    <h2>🏆 Sign-Up Summary</h2>
+    <div class="summary-grid" id="summary-grid"><em style="color:var(--gray);font-size:0.9rem;">No sign-ups yet — be the first!</em></div>
+  </div>
+
+  <button class="print-btn" onclick="window.print()">🖨️ Print Calendar</button>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <p class="slot-desc" id="modal-desc"></p>
+
+    <div id="slot-selector-wrap">
+      <div class="section-label">Signing up for…</div>
+      <div class="slot-toggle">
+        <button class="toggle-btn" id="tbtn-am"   onclick="selectSlot('am')">🌅 AM only</button>
+        <button class="toggle-btn" id="tbtn-pm"   onclick="selectSlot('pm')">🌇 PM only</button>
+        <button class="toggle-btn" id="tbtn-both" onclick="selectSlot('both')">⭐ Both</button>
+      </div>
+    </div>
+
+    <div class="section-label">Choose a name</div>
+    <div class="name-list" id="name-list"></div>
+
+    <div class="add-name-row">
+      <input type="text" id="new-name-input" placeholder="Type a new name to add…" maxlength="28" />
+      <button onclick="addNewName()">+ Add</button>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-confirm" onclick="confirmSignup()">Save ✓</button>
+    </div>
+    <button class="btn btn-remove" id="remove-btn" onclick="removeSignup()" style="display:none;">✕ Clear this slot</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  SUPABASE CONFIG  ← Replace these two values
+// ══════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://kuvlrgpwnvrhvhkodxol.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1dmxyZ3B3bnZyaHZoa29keG9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMTgzODYsImV4cCI6MjA4ODY5NDM4Nn0.ULZVdfGZrFXeEB7Axr-MXjka4elXNJc5V-tJjlbEzbU';
+// ══════════════════════════════════════════════════════════════
+
+// ── Pre-loaded names — add/edit your neighborhood kids here ──
+let names = [];
+// ─────────────────────────────────────────────────────────────
+
+const USE_DB = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+let sb = null;
+if (USE_DB) {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  document.getElementById('config-banner').classList.add('hidden');
+}
+
+const START = new Date(2025, 4, 25);
+const END   = new Date(2025, 6, 22);
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+let signups = {}; // { "2025-5-25": { am:"Emma", pm:"Liam", poop:"Noah" } }
+
+// ── DB helpers ────────────────────────────────────────────────
+async function dbLoad() {
+  setStatus('Connecting…','');
+  try {
+    const [{ data: rows, error: e1 }, { data: nameRows, error: e2 }] = await Promise.all([
+      sb.from('signups').select('*'),
+      sb.from('names').select('name').order('created_at')
+    ]);
+    if (e1) throw e1; if (e2) throw e2;
+    signups = {};
+    (rows||[]).forEach(r => { if (!signups[r.date_key]) signups[r.date_key]={}; signups[r.date_key][r.slot]=r.person_name; });
+    const extra = (nameRows||[]).map(r=>r.name);
+    names = [...new Set([...names,...extra])];
+    setStatus('✓ Live — everyone sees the same calendar','ok');
+  } catch(err) {
+    setStatus('⚠️ Supabase error — using local mode','error');
+    localLoad();
+  }
+}
+
+async function dbUpsert(dateKey, slot, person) {
+  if (!USE_DB) return;
+  await sb.from('signups').upsert({ date_key:dateKey, slot, person_name:person },{ onConflict:'date_key,slot' });
+}
+
+async function dbDelete(dateKey, slot) {
+  if (!USE_DB) return;
+  await sb.from('signups').delete().eq('date_key',dateKey).eq('slot',slot);
+}
+
+async function dbSaveName(name) {
+  if (!USE_DB) return;
+  await sb.from('names').upsert({ name },{ onConflict:'name' });
+}
+
+function dbSubscribe() {
+  if (!USE_DB) return;
+  sb.channel('matilda-live')
+    .on('postgres_changes',{ event:'*', schema:'public', table:'signups' }, async () => {
+      await dbLoad(); renderCalendar(); renderSummary();
+    }).subscribe();
+}
+
+// ── Local fallback ────────────────────────────────────────────
+function localSave() { localStorage.setItem('m-signups',JSON.stringify(signups)); localStorage.setItem('m-names',JSON.stringify(names)); }
+function localLoad() { signups=JSON.parse(localStorage.getItem('m-signups')||'{}'); const s=JSON.parse(localStorage.getItem('m-names')||'[]'); names=[...new Set([...names,...s])]; }
+function setStatus(msg,cls) { const el=document.getElementById('status-bar'); el.textContent=msg; el.className=cls; }
+function dateKey(d) { return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+function inRange(d) { return d>=START && d<=END; }
+
+// ── Modal state ───────────────────────────────────────────────
+let mKey=null, mMode=null, mSlot='both', mName=null;
+// mMode: 'day' | 'am' | 'pm' | 'poop'
+
+function openDayModal(key, label) {
+  mKey=key; mMode='day'; mSlot='both'; mName=null;
+  document.getElementById('modal-title').textContent = label;
+  document.getElementById('modal-desc').textContent  = 'Click a day to sign up for feeding';
+  document.getElementById('slot-selector-wrap').style.display='block';
+  selectSlot('both');
+  buildNameChips(null);
+  document.getElementById('remove-btn').style.display='none';
+  document.getElementById('modal').classList.add('open');
+}
+
+function openSlotModal(key, slot, label) {
+  mKey=key; mMode=slot; mSlot=slot; mName=null;
+  const lbl = { am:'🌅 AM Feeding', pm:'🌇 PM Feeding', poop:'🌿 Poop Scoop + Lawn' }[slot];
+  document.getElementById('modal-title').textContent = label;
+  document.getElementById('modal-desc').textContent  = lbl;
+  document.getElementById('slot-selector-wrap').style.display='none';
+  const cur = (signups[key]||{})[slot]||null;
+  buildNameChips(cur);
+  document.getElementById('remove-btn').style.display = cur ? 'block' : 'none';
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('new-name-input').value='';
+  mKey=mMode=mName=null;
+}
+
+function selectSlot(s) {
+  mSlot=s;
+  ['am','pm','both'].forEach(t => {
+    document.getElementById('tbtn-'+t).className = 'toggle-btn' + (t===s ? ' sel-'+t : '');
+  });
+}
+
+function buildNameChips(current) {
+  mName = current||null;
+  const list = document.getElementById('name-list');
+  list.innerHTML='';
+  names.forEach(n => {
+    const chip = document.createElement('button');
+    chip.className='name-chip'+(n===current?' selected':'');
+    chip.textContent=n;
+    chip.onclick=()=>{ mName=n; list.querySelectorAll('.name-chip').forEach(c=>c.classList.remove('selected')); chip.classList.add('selected'); };
+    list.appendChild(chip);
+  });
+}
+
+function addNewName() {
+  const inp = document.getElementById('new-name-input');
+  const n = inp.value.trim();
+  if (!n || names.includes(n)) { inp.value=''; return; }
+  names.push(n);
+  dbSaveName(n);
+  localSave();
+  buildNameChips(n);
+  mName=n;
+  inp.value='';
+}
+
+async function confirmSignup() {
+  if (!mName) { document.getElementById('new-name-input').focus(); return; }
+  const slots = mMode==='day' ? (mSlot==='both' ? ['am','pm'] : [mSlot]) : [mMode];
+  if (!signups[mKey]) signups[mKey]={};
+  for (const s of slots) { signups[mKey][s]=mName; await dbUpsert(mKey,s,mName); }
+  localSave(); renderCalendar(); renderSummary(); closeModal();
+}
+
+async function removeSignup() {
+  if (!mMode||mMode==='day') return;
+  if (signups[mKey]) { delete signups[mKey][mMode]; if (!Object.keys(signups[mKey]).length) delete signups[mKey]; }
+  await dbDelete(mKey, mMode);
+  localSave(); renderCalendar(); renderSummary(); closeModal();
+}
+
+document.getElementById('new-name-input').addEventListener('keydown', e=>{ if(e.key==='Enter') addNewName(); if(e.key==='Escape') closeModal(); });
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target===document.getElementById('modal')) closeModal(); });
+
+// ── Calendar ──────────────────────────────────────────────────
+function renderCalendar() {
+  const cal = document.getElementById('calendar');
+  cal.innerHTML='';
+  const months=[];
+  let cur=new Date(START.getFullYear(),START.getMonth(),1);
+  const em=new Date(END.getFullYear(),END.getMonth(),1);
+  while(cur<=em){months.push(new Date(cur));cur.setMonth(cur.getMonth()+1);}
+
+  months.forEach(ms=>{
+    const blk=document.createElement('div'); blk.className='month-block';
+    blk.innerHTML=`<div class="month-header"><h2>${MONTHS[ms.getMonth()]} ${ms.getFullYear()}</h2></div>`;
+    const grid=document.createElement('div'); grid.className='day-grid';
+    DAYS.forEach(d=>{const l=document.createElement('div');l.className='day-label';l.textContent=d;grid.appendChild(l);});
+    for(let i=0;i<ms.getDay();i++){const b=document.createElement('div');b.className='day-cell inactive';grid.appendChild(b);}
+    const dim=new Date(ms.getFullYear(),ms.getMonth()+1,0).getDate();
+    for(let d=1;d<=dim;d++){
+      const date=new Date(ms.getFullYear(),ms.getMonth(),d);
+      const key=dateKey(date); const active=inRange(date); const data=signups[key]||{};
+      const parts=key.split('-');
+      const label=`${MONTHS[parseInt(parts[1])-1]} ${parts[2]}`;
+      const cell=document.createElement('div');
+      cell.className=`day-cell ${active?'active':'inactive'}`;
+      const ns=document.createElement('span'); ns.className='day-num'; ns.textContent=d; cell.appendChild(ns);
+      if(active){
+        cell.addEventListener('click',()=>openDayModal(key,label));
+        cell.appendChild(mkSlot(key,'am','🌅',data.am,label));
+        cell.appendChild(mkSlot(key,'pm','🌇',data.pm,label));
+        if(date.getDay()===1||data.poop) cell.appendChild(mkSlot(key,'poop','🌿',data.poop,label));
+      }
+      grid.appendChild(cell);
+    }
+    blk.appendChild(grid); cal.appendChild(blk);
+  });
+}
+
+function mkSlot(key,type,icon,name,label){
+  const el=document.createElement('div');
+  el.className=`slot ${type} ${name?'filled':'empty'}`;
+  el.innerHTML=`<span class="slot-icon">${icon}</span><span class="slot-name">${name||(type==='am'?'AM':type==='pm'?'PM':'Lawn')}</span>`;
+  el.addEventListener('click',e=>{e.stopPropagation();openSlotModal(key,type,label);});
+  return el;
+}
+
+function renderSummary(){
+  const counts={};
+  Object.values(signups).forEach(d=>['am','pm','poop'].forEach(s=>{ if(d[s]) counts[d[s]]=(counts[d[s]]||0)+1; }));
+  const grid=document.getElementById('summary-grid');
+  const ns=Object.keys(counts);
+  if(!ns.length){grid.innerHTML='<em style="color:var(--gray);font-size:0.9rem;">No sign-ups yet — be the first!</em>';return;}
+  grid.innerHTML=ns.sort((a,b)=>counts[b]-counts[a]).map(n=>`<div class="summary-card"><div class="name">🐾 ${n}</div><div class="count">${counts[n]} slot${counts[n]!==1?'s':''}</div></div>`).join('');
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+async function init(){
+  if(USE_DB){ await dbLoad(); dbSubscribe(); }
+  else { localLoad(); setStatus('⚠️ Local only — add Supabase credentials to go live','error'); }
+  document.getElementById('loading').classList.add('hidden');
+  renderCalendar(); renderSummary();
+}
+init();
+</script>
+</body>
+</html>
